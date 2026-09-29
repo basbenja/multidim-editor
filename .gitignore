@@ -1,0 +1,10 @@
+node_modules
+dist
+*.local
+.DS_Store
+
+# Editor tooling
+.claude/
+
+# Reference screenshots from the textbook (kept locally, not published)
+images/
