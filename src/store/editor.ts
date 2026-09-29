@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { resolveAttachments } from '../geometry/attach';
+import { cleanDocName, DEFAULT_DOC_NAME } from '../lib/filename';
 import * as H from '../model/history';
 import type { Action } from '../model/reducer';
 import { emptyDiagram, type Diagram, type Point, type Side } from '../model/types';
@@ -36,7 +37,8 @@ interface EditorState {
   snap: { nodeId: string; side: Side } | null;
   /** Rendered node sizes as measured by React Flow. */
   sizes: Record<string, Size>;
-  fileName: string;
+  /** Base name for Save (.json) and Export (.png/.svg), without extension. */
+  docName: string;
   notice: { text: string; tone: 'info' | 'error' } | null;
   panelOpen: boolean;
   /** True while an image export renders the canvas without editor chrome. */
@@ -49,7 +51,8 @@ interface EditorState {
   endGesture: () => void;
   undo: () => void;
   redo: () => void;
-  load: (d: Diagram, fileName?: string) => void;
+  load: (d: Diagram, docName?: string) => void;
+  setDocName: (name: string) => void;
   setSelection: (ids: string[]) => void;
   setEditing: (e: Editing | null) => void;
   setReconnect: (r: Reconnect | null) => void;
@@ -76,7 +79,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   reconnect: null,
   snap: null,
   sizes: {},
-  fileName: 'diagram.json',
+  docName: DEFAULT_DOC_NAME,
   notice: null,
   panelOpen: readPanelPref(),
   exporting: false,
@@ -88,12 +91,12 @@ export const useEditor = create<EditorState>((set, get) => ({
   endGesture: () => set((s) => ({ history: H.endGesture(s.history) })),
   undo: () => set((s) => ({ history: H.undo(s.history), editing: null })),
   redo: () => set((s) => ({ history: H.redo(s.history), editing: null })),
-  load: (d, fileName) =>
+  load: (d, docName) =>
     set((s) => ({
       history: H.commit(s.history, { type: 'replace', diagram: d }),
       selection: [],
       editing: null,
-      fileName: fileName ?? s.fileName,
+      docName: docName === undefined ? s.docName : cleanDocName(docName),
     })),
   setSelection: (ids) => {
     const cur = get().selection;
@@ -101,6 +104,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({ selection: ids });
   },
   setEditing: (editing) => set({ editing }),
+  setDocName: (name) => set({ docName: cleanDocName(name) }),
   setReconnect: (reconnect) => set({ reconnect }),
   setSnap: (snap) => {
     const cur = get().snap;

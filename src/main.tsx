@@ -4,12 +4,13 @@ import '@xyflow/react/dist/style.css';
 import './index.css';
 import App from './App';
 import { loadAutosave, startAutosave } from './io/autosave';
+import { cleanDocName } from './lib/filename';
 import { createHistory } from './model/history';
 import { useEditor } from './store/editor';
 
 const saved = loadAutosave();
 if (saved) {
-  useEditor.setState({ history: createHistory(saved.diagram), fileName: saved.fileName ?? 'diagram.json' });
+  useEditor.setState({ history: createHistory(saved.diagram), docName: cleanDocName(saved.docName ?? '') });
 }
 startAutosave();
 

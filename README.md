@@ -35,6 +35,7 @@ the browser, and you can save/open it as a `.json` file or export it as PNG or S
 | Delete | **Delete** / **Backspace**. |
 | Undo / redo | **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z** or **Ctrl+Y**. |
 | Pan / zoom | Scroll to pan, **Ctrl**+scroll or pinch to zoom. |
+| Name the file | Click the name in the toolbar (next to *New*). **Save** downloads `name.json`, **Export** downloads `name.png` / `name.svg`. Opening a file takes its name. |
 
 The side panel shows the properties of the selection and a list of warnings (levels without a key,
 empty or duplicate names, facts without links, several links between the same fact and level

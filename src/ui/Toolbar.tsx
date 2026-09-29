@@ -1,10 +1,11 @@
 import { useReactFlow } from '@xyflow/react';
-import { ChevronDown, Download, FilePlus2, FolderOpen, PanelRight, Redo2, Save, Undo2 } from 'lucide-react';
+import { ChevronDown, Download, FilePlus2, FileText, FolderOpen, PanelRight, Redo2, Save, Undo2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { addArcToSelection, addFactorToSelection, factorTarget } from '../canvas/actions';
 import { addNodeAt, PALETTE_MIME } from '../canvas/Canvas';
 import { exclusiveArcCandidate } from '../model/factory';
 import { exportImage, type ImageFormat } from '../io/export';
+import { DEFAULT_DOC_NAME } from '../lib/filename';
 import { downloadBlob, pickFile } from '../io/file';
 import { DiagramParseError, parseDiagram, serializeDiagram } from '../model/serialize';
 import { emptyDiagram, type NodeKind } from '../model/types';
@@ -109,12 +110,12 @@ function ExportMenu() {
 
   const run = async (format: ImageFormat) => {
     setOpen(false);
-    const { fileName, notify, setEditing } = useEditor.getState();
+    const { docName, notify, setEditing } = useEditor.getState();
     setEditing(null);
     // Let an in-progress edit commit and the canvas settle.
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     try {
-      const ok = await exportImage(format, fileName.replace(/\.json$/i, '') || 'diagram', screenToFlowPosition);
+      const ok = await exportImage(format, docName, screenToFlowPosition);
       if (!ok) notify('Nothing to export yet.');
     } catch (err) {
       notify(`Export failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -150,6 +151,62 @@ function ExportMenu() {
   );
 }
 
+/**
+ * Name of the diagram, used for Save (name.json) and Export (name.png /
+ * name.svg). Looks like plain text until hovered; Enter or blur saves,
+ * Escape cancels.
+ */
+function DocNameField() {
+  const docName = useEditor((s) => s.docName);
+  const [draft, setDraft] = useState(docName);
+  const [focused, setFocused] = useState(false);
+  const cancelled = useRef(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(docName);
+  }, [docName, focused]);
+  useEffect(() => {
+    document.title = `${docName} · MultiDim Editor`;
+  }, [docName]);
+
+  return (
+    <label
+      className="mr-1 flex h-8 items-center gap-1.5 rounded-md border border-transparent px-2 text-zinc-400 transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 hover:border-zinc-200"
+      title="File name used by Save (.json) and Export (.png / .svg). Click to rename."
+    >
+      <FileText size={14} className="shrink-0" />
+      <input
+        aria-label="File name"
+        className="min-w-0 bg-transparent text-[13px] text-zinc-700 outline-none"
+        size={Math.min(28, Math.max(6, draft.length + 1))}
+        value={draft}
+        spellCheck={false}
+        onFocus={(e) => {
+          setFocused(true);
+          e.currentTarget.select();
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          setFocused(false);
+          if (cancelled.current) {
+            cancelled.current = false;
+            setDraft(docName);
+          } else {
+            useEditor.getState().setDocName(draft);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            cancelled.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
+  );
+}
+
 function Divider() {
   return <div className="mx-1.5 h-5 w-px bg-zinc-200" />;
 }
@@ -158,7 +215,6 @@ export function Toolbar() {
   const { screenToFlowPosition } = useReactFlow();
   const canUndo = useEditor((s) => s.history.past.length > 0 || s.history.gestureBase !== null);
   const canRedo = useEditor((s) => s.history.future.length > 0);
-  const fileName = useEditor((s) => s.fileName);
   const panelOpen = useEditor((s) => s.panelOpen);
   const canAddFactor = useEditor((s) => factorTarget(s.history.present, s.selection) !== null);
   const canAddArc = useEditor((s) => exclusiveArcCandidate(s.history.present, s.selection) !== null);
@@ -183,8 +239,8 @@ export function Toolbar() {
   };
 
   const save = () => {
-    const { fileName } = useEditor.getState();
-    downloadBlob(fileName, new Blob([serializeDiagram(documentForSave())], { type: 'application/json' }));
+    const { docName } = useEditor.getState();
+    downloadBlob(`${docName}.json`, new Blob([serializeDiagram(documentForSave())], { type: 'application/json' }));
   };
 
   return (
@@ -227,9 +283,7 @@ export function Toolbar() {
         <Redo2 size={16} />
       </ToolButton>
       <div className="flex-1" />
-      <span className="mr-2 max-w-48 truncate text-xs text-zinc-400" title={fileName}>
-        {fileName}
-      </span>
+      <DocNameField />
       <ToolButton title="New diagram" label="New" onClick={() => setConfirmNew(true)}>
         <FilePlus2 size={16} />
       </ToolButton>
@@ -252,7 +306,7 @@ export function Toolbar() {
           onCancel={() => setConfirmNew(false)}
           onConfirm={() => {
             setConfirmNew(false);
-            useEditor.getState().load(emptyDiagram(), 'diagram.json');
+            useEditor.getState().load(emptyDiagram(), DEFAULT_DOC_NAME);
           }}
         />
       )}
