@@ -88,7 +88,8 @@ src/
 
 ## Known limitations / candidates for the final Northwind pass
 
-- Auto-routing does not spread several links that attach to the same side of a node (e.g. Sales→Shipper and Sales→Order both leave Sales' right side at its middle, so their first segments overlap). Distributing ports along a side would fix this without manual routing (M4).
+- ~~Links on the same node side overlapped~~ → fixed by `geometry/ports.ts#spreadPorts` (run at the end of `computeRoutes`): ends on one side get distinct spots ≥ 20px apart, ordered by where the links head; straight links stay pinned when possible; Z links leaving one side in the same direction get staggered middle segments.
+- Smart guides (added after M8, user request): `geometry/guides.ts#snapToGuides` + `canvas/overlays/AlignmentGuides.tsx`. Dragging snaps the dragged group's left/center/right and top/middle/bottom to other boxes within 6 screen px (facts use their front face); Alt disables; keyboard nudges are not snapped.
 
 ## Status / notes for the next session
 

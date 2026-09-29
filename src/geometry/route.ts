@@ -1,5 +1,6 @@
 import { FACT_DEPTH, LINE_HEIGHT } from '../lib/style';
 import type { Diagram, DiagramNode, Link, Point, Side } from '../model/types';
+import { spreadPorts } from './ports';
 
 /** Node bounds. `depth` > 0 for facts, whose 3D corners are cut off. */
 export interface Box {
@@ -75,7 +76,7 @@ export function sideSpan(b: Box, side: Side): { at: number; from: number; to: nu
 }
 
 /** Usable span of a side, i.e. without the corner margins. */
-function usable(b: Box, side: Side): [number, number] {
+export function usableSpan(b: Box, side: Side): [number, number] {
   const s = sideSpan(b, side);
   const m = Math.min(CORNER_MARGIN, (s.to - s.from) / 2);
   return [s.from + m, s.to - m];
@@ -84,7 +85,7 @@ function usable(b: Box, side: Side): [number, number] {
 /** End on `side` at coordinate `along` (clamped to the side). */
 export function endAt(b: Box, side: Side, along: number): End {
   const s = sideSpan(b, side);
-  const [lo, hi] = usable(b, side);
+  const [lo, hi] = usableSpan(b, side);
   const t = clamp(along, lo, hi);
   const point = isHorizontalSide(side) ? { x: t, y: s.at } : { x: s.at, y: t };
   return { point, side, dir: DIRS[side] };
@@ -129,8 +130,8 @@ export function autoRoute(a: Box, b: Box, k = 0, n = 1): Route {
 
 /** One straight segment through the span both facing sides share, or null. */
 function straightRoute(a: Box, b: Box, [sa, sb]: [Side, Side], k: number, n: number): Route | null {
-  const [a0, a1] = usable(a, sa);
-  const [b0, b1] = usable(b, sb);
+  const [a0, a1] = usableSpan(a, sa);
+  const [b0, b1] = usableSpan(b, sb);
   const lo = Math.max(a0, b0);
   const hi = Math.min(a1, b1);
   if (hi - lo < MIN_OVERLAP) return null;
@@ -206,7 +207,7 @@ export function computeRoutes(d: Diagram, sizes: Record<string, Size>): Map<stri
       routes.set(l.id, r);
     });
   }
-  return routes;
+  return spreadPorts(routes, d.links, boxes);
 }
 
 export function reverse(r: Route): Route {

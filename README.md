@@ -31,6 +31,7 @@ the browser, and you can save/open it as a `.json` file or export it as PNG or S
 | Attach a criterion | Drag it next to a level side (it turns vertical on left/right sides). Hold **Alt** to drop without attaching; drag it away to detach. |
 | Add a distributing factor | Select a link, then click the factor button in the toolbar. |
 | Add an exclusive relationship | Click a link, **Shift**-click the others that share a node, then click the ⊗ button. Drag the ⊗ to move it; pick the side in the side panel. |
+| Align boxes | Drag a box near another one's edge or center line: it snaps into line and a red guide appears. Hold **Alt** to place it freely. |
 | Select several things | Drag on empty canvas, or **Shift**-click. |
 | Delete | **Delete** / **Backspace**. |
 | Undo / redo | **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z** or **Ctrl+Y**. |

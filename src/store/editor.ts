@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { resolveAttachments } from '../geometry/attach';
+import type { Guide } from '../geometry/guides';
 import { cleanDocName, DEFAULT_DOC_NAME } from '../lib/filename';
 import * as H from '../model/history';
 import type { Action } from '../model/reducer';
@@ -33,6 +34,8 @@ interface EditorState {
   selection: string[];
   editing: Editing | null;
   reconnect: Reconnect | null;
+  /** Alignment guides shown while dragging. */
+  guides: Guide[];
   /** Level side a dragged criterion would snap to on drop. */
   snap: { nodeId: string; side: Side } | null;
   /** Rendered node sizes as measured by React Flow. */
@@ -57,6 +60,7 @@ interface EditorState {
   setEditing: (e: Editing | null) => void;
   setReconnect: (r: Reconnect | null) => void;
   setSnap: (snap: { nodeId: string; side: Side } | null) => void;
+  setGuides: (guides: Guide[]) => void;
   setSizes: (sizes: Record<string, Size>) => void;
   notify: (text: string, tone?: 'info' | 'error') => void;
   togglePanel: () => void;
@@ -78,6 +82,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   editing: null,
   reconnect: null,
   snap: null,
+  guides: [],
   sizes: {},
   docName: DEFAULT_DOC_NAME,
   notice: null,
@@ -106,6 +111,10 @@ export const useEditor = create<EditorState>((set, get) => ({
   setEditing: (editing) => set({ editing }),
   setDocName: (name) => set({ docName: cleanDocName(name) }),
   setReconnect: (reconnect) => set({ reconnect }),
+  setGuides: (guides) => {
+    if (guides.length === 0 && get().guides.length === 0) return;
+    set({ guides });
+  },
   setSnap: (snap) => {
     const cur = get().snap;
     if (cur?.nodeId === snap?.nodeId && cur?.side === snap?.side) return;

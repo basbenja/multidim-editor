@@ -526,6 +526,24 @@ body {
   fill: rgb(59 130 246 / 0.18);
 }
 
+/* Smart guides while dragging. */
+.md-guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.md-guides line {
+  stroke: #f43f5e;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
 /* Nothing that is editor chrome ends up in exported images. */
 [data-exporting] .md-chrome,
 [data-exporting] .react-flow__node.selected > .md-node::after {

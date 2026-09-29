@@ -13,13 +13,15 @@ import {
   type OnConnectStart,
   type OnNodeDrag,
 } from '@xyflow/react';
-import { useCallback, useMemo, useRef, type DragEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type DragEvent, type MouseEvent } from 'react';
 import { attachCriterion, findAttachment, resolveAttachments, type Attachment } from '../geometry/attach';
+import { snapToGuides, unionRect, visualBox, type Guide } from '../geometry/guides';
 import { borderPoint, computeRoutes, nodeBox, pathD } from '../geometry/route';
 import { approxSize, createLink, createNode } from '../model/factory';
 import type { Diagram, DiagramNode, Link, NodeKind, Point } from '../model/types';
 import { selectDiagram, useEditor, type Size } from '../store/editor';
 import { edgeTypes, RoutesContext, type MDEdge } from './edges/LinkEdge';
+import { AlignmentGuides } from './overlays/AlignmentGuides';
 import { ExclusiveArcs } from './overlays/ExclusiveArcs';
 import { nodeTypes, type MDNode } from './nodes/nodes';
 
@@ -106,6 +108,32 @@ function ConnectionLine({ fromNode, toX, toY }: ConnectionLineComponentProps) {
   return <path className="md-connection-line" d={pathD([borderPoint(box, to), to])} />;
 }
 
+/** Screen distance (px) within which a dragged box snaps into alignment. */
+const GUIDE_SNAP_PX = 6;
+
+/**
+ * Smart guides: shifts the dragged nodes so that the group's left/center/
+ * right or top/middle/bottom lines up with another box within `threshold`.
+ */
+function snapPositions(positions: Record<string, Point>, threshold: number): { positions: Record<string, Point>; guides: Guide[] } {
+  const { history, sizes } = useEditor.getState();
+  const view = resolveAttachments(history.present, sizes);
+  const moving = [];
+  const others = [];
+  for (const n of view.nodes) {
+    const p = positions[n.id];
+    if (p) moving.push(visualBox({ ...n, x: p.x, y: p.y }, sizes[n.id]));
+    // Criteria attached to a dragged level move with it.
+    else if (!(n.kind === 'criterion' && n.attachedTo && positions[n.attachedTo.nodeId])) others.push(visualBox(n, sizes[n.id]));
+  }
+  if (moving.length === 0 || others.length === 0) return { positions, guides: [] };
+  const { dx, dy, guides } = snapToGuides(unionRect(moving), others, threshold);
+  if (dx === 0 && dy === 0) return { positions, guides };
+  const shifted: Record<string, Point> = {};
+  for (const [id, p] of Object.entries(positions)) shifted[id] = { x: Math.round(p.x + dx), y: Math.round(p.y + dy) };
+  return { positions: shifted, guides };
+}
+
 /**
  * Where each dragged criterion would snap: the closest level side within
  * reach, ignoring levels that are being dragged along with it.
@@ -153,11 +181,27 @@ export function Canvas() {
   const flowNodes = useFlowNodes(view.nodes, selected, sizes);
   const flowEdges = useFlowEdges(view.links, selected);
   const routes = useMemo(() => computeRoutes(view, sizes), [view, sizes]);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getZoom } = useReactFlow();
+
+  // Mouse drag in progress (keyboard nudges are not snapped), and whether
+  // Alt is held (disables snapping).
+  const mouseDrag = useRef(false);
+  const altDown = useRef(false);
+  useEffect(() => {
+    const track = (e: KeyboardEvent | PointerEvent) => (altDown.current = e.altKey);
+    window.addEventListener('pointermove', track, true);
+    window.addEventListener('keydown', track, true);
+    window.addEventListener('keyup', track, true);
+    return () => {
+      window.removeEventListener('pointermove', track, true);
+      window.removeEventListener('keydown', track, true);
+      window.removeEventListener('keyup', track, true);
+    };
+  }, []);
 
   const onNodesChange = useCallback((changes: NodeChange<MDNode>[]) => {
     const s = useEditor.getState();
-    const positions: Record<string, Point> = {};
+    let positions: Record<string, Point> = {};
     const measured: Record<string, Size> = {};
     for (const c of changes) {
       if (c.type === 'position' && c.position) {
@@ -174,10 +218,20 @@ export function Canvas() {
         }
       }
     }
-    if (Object.keys(positions).length) s.transient({ type: 'moveNodes', positions });
+    if (Object.keys(positions).length) {
+      // Criteria about to attach to a level side are placed by that instead.
+      if (mouseDrag.current && !altDown.current && !s.snap) {
+        const snapped = snapPositions(positions, GUIDE_SNAP_PX / getZoom());
+        positions = snapped.positions;
+        s.setGuides(snapped.guides);
+      } else {
+        s.setGuides([]);
+      }
+      s.transient({ type: 'moveNodes', positions });
+    }
     if (Object.keys(measured).length) s.setSizes(measured);
     applySelectChanges(changes);
-  }, []);
+  }, [getZoom]);
 
   const onEdgesChange = useCallback((changes: EdgeChange<MDEdge>[]) => applySelectChanges(changes), []);
 
@@ -185,6 +239,7 @@ export function Canvas() {
   // to a level side (Alt disables this) snaps it there.
   const onNodeDragStart: OnNodeDrag<MDNode> = useCallback((_, __, dragged) => {
     const s = useEditor.getState();
+    mouseDrag.current = true;
     s.beginGesture();
     const current = resolveAttachments(s.history.present, s.sizes);
     for (const { id } of dragged) {
@@ -206,6 +261,8 @@ export function Canvas() {
 
   const onNodeDragStop: OnNodeDrag<MDNode> = useCallback((e, _, dragged) => {
     const s = useEditor.getState();
+    mouseDrag.current = false;
+    s.setGuides([]);
     s.setSnap(null);
     if (!e.altKey) {
       const present = s.history.present;
@@ -315,6 +372,7 @@ export function Canvas() {
           proOptions={{ hideAttribution: true }}
         >
           <ExclusiveArcs view={view} />
+          <AlignmentGuides />
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#d4d4d8" />
           <Controls showInteractive={false} position="bottom-left" />
         </ReactFlow>
