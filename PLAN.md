@@ -77,7 +77,7 @@ src/
 - [x] **M5** Undo/redo (gestures = 1 step), side panel, validation panel. Tests: history + validation.
 - [x] **M6** Export PNG/SVG (PDF dropped by the user). `io/export.ts`: html-to-image on `.react-flow__viewport`; html-to-image deep-copies `<svg>` without inlining CSS, so drawn SVG shapes carry presentation attributes and SVG chrome is not rendered while `exporting` is set. SVG output uses foreignObject (fine in browsers, not in Inkscape/Word).
 - [x] **M7** Distributing factors (rendered inside `LinkEdge`, box via EdgeLabelRenderer) and exclusive arcs (`canvas/overlays/ExclusiveArcs.tsx`, ViewportPortal SVG, z 2). Dragging ⊗ changes only the distance; the side is set in the side panel. Label layer is z 3 so links never steal clicks from labels/boxes.
-- [ ] **M8** GitHub Pages workflow + README.
+- [x] **M8** GitHub Pages workflow (`.github/workflows/deploy.yml`: test, build, deploy on push to main) + README. Needs Settings → Pages → Source: GitHub Actions.
 - [ ] **Final** Rebuild Northwind, fix friction.
 
 ## Decisions that override SPEC.md (requested by the user)
